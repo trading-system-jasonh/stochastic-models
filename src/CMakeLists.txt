@@ -5,7 +5,7 @@ ornstein_uhlenbeck.cpp
 core.cpp
 gaussian.cpp
 gsl_errors.cpp
-filter.cpp
+kca.cpp
 states.cpp
 states_exceptions.cpp
 linalg.cpp
@@ -26,7 +26,10 @@ trading_levels.cpp
 trading_levels_exponential.cpp
 trading_levels_params.cpp
 type_conversion.cpp
-interface.cpp)
+entrypoint_optimal_trading_levels.cpp
+entrypoint_kca_filter.cpp
+entrypoint_ou_model.cpp
+)
 
 target_include_directories(stochastic_models
 PRIVATE
@@ -34,10 +37,10 @@ PRIVATE
 "${PROJECT_SOURCE_DIR}/include"
 PUBLIC
 # where top-level project will look for the library's public headers
-$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/stochastic_models/interface>
+$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/stochastic_models/entrypoints>
 $<BUILD_INTERFACE:${boost_SOURCE_DIR}>
 # where external projects will look for the library's public headers
-$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}/interface>
+$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}/entrypoints>
 )
 
 target_link_libraries(
