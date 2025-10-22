@@ -22,14 +22,102 @@ Please feel free to open issues, submit pull requests, or reach out with suggest
 ### Maximum Likelihood Estimation of Stochastic Processes
 **Ornstein-Uhlenbeck (Mean Reverting) Model**
 This assumes that the Ornstein-Uhlenbeck process takes the form
+
 $$\mathrm{d}X(t) = \alpha(\mu-x(t))\mathrm{d}t + \sigma \mathrm{d}W(t), $$
+
 with $\alpha$ the drift term and $\sigma$ diffusion term. The term $\mathrm{d}W(t)$ comprises the Brownian motion.
 
 
 **General Stochastic Differential Equation (SDE) Model**
-This assumes that the SDE process takes the form
+This assumes that the SDE process takes the form:
+
 $$\mathrm{d}X(t) = \mu(X,t)\mathrm{d}t + \sigma(X,t) \mathrm{d}W(t), $$
+
 with $\mu(X,t)$ the drift term and $\sigma(X,t)$ diffusion term. The term $\mathrm{d}W(t)$ comprises the Brownian motion.
+
+### Online Updating of MLE Parameters
+
+A method to update model parameters as new data arrives is implemented using a simple corrected sums of squares approach. This is based on the Welford (1962) method for calculating variance in a numerically stable way.
+
+**Citation:** Welford, B. P. (1962). Note on a Method for Calculating Corrected Sums of Squares and Products. Technometrics, 4(3), 419–420.
+
+This method drops the assumption that parameters are time-varying and requires the client to maintain a stateful representation of the current model parameters.
+
+**For the linear model of the form:**
+
+$$\mathrm{d}X(t) = \mu X(t)\mathrm{d}t + \sigma\mathrm{d}W(t), $$
+
+The likelihood function being optimized is:
+
+$$\mathcal{L}(\mu,\sigma)=-\frac{n\log{2\pi}}{2}-n\log{\hat{\sigma}}-\frac{1}{2\hat{\sigma}^2}\sum^n_{i=1}{(X_t-X_{t-1}e^{\mu})^2}$$
+
+When a new observation $X_t$ arrives, the `GeneralLinearUpdater` performs the following update steps:
+
+**1. Update $\mu$ parameter components:** Accumulate individual components used in calculations for the MLE solution:
+
+$$\sum^n_{t=1}{X_{t-1} \cdot X_{t-2}} \leftarrow  \text{ is updated with the next } X_t \cdot X_{t-1}$$
+
+$$\sum^n_{t=1}{X_{t-2}^2} \leftarrow \text{ is updated with the next } X_{t-1}^2$$
+
+**2. Update $\sigma$ parameter components:** Compute prediction error and update variance accumulator using Welford's correction:
+
+$$\epsilon_t = X_t - e^{\hat{\mu}} \cdot X_{t-1}$$
+
+$$S_{\text{new}} = S_{\text{old}} + \frac{n-1}{n} \cdot \epsilon_t^2$$
+
+**3. Update state:**
+
+$(n-1) \leftarrow n$ and $X_{\text{last}} \leftarrow X_t$
+
+**4. Update stateful object parameters:** $\mu$ and $\sigma$ are updated in a stateful object based on the new state.
+
+$$\hat{\mu} = \ln{\frac{\sum^n_{t=1}{X_t \cdot X_{t-1}}}{\sum^n_{t=1}{X_{t-1}^2}}}$$
+
+$$\hat{\sigma} = \sqrt{\frac{S_{\text{new}}}{n}}$$
+
+**For the Ornstein-Uhlenbeck model of the form:**
+
+$$\mathrm{d}X(t) = \alpha(\mu-X(t))\mathrm{d}t + \sigma \mathrm{d}W(t), $$
+
+The likelihood function being optimized is:
+
+$$\mathcal{L}(\alpha,\mu,\sigma)=-\frac{n\log{2\pi}}{2}-n\log{\hat{\sigma}}-\frac{1}{2\hat{\sigma}^2}\sum^n_{i=1}{(X_t-X_{t-1}e^{-\alpha}-\mu(1-e^{-\alpha}))^2}$$
+
+**1. Update parameter components:** Accumulate individual components used in calculations for the MLE solution:
+
+$$\sum^n_{t=1}X_{t-1} \leftarrow  \text{ is updated with the next } X_t$$
+
+$$\sum^n_{t=1}X_{t-1}^2 \leftarrow  \text{ is updated with the next } X_t^2$$
+
+$$\sum^n_{t=1}X_{t-2} \leftarrow  \text{ is updated with the next } X_{t-1}$$
+
+$$\sum^n_{t=1}{X_{t-2}^2} \leftarrow \text{ is updated with the next } X_{t-1}^2$$
+
+$$\sum^n_{t=1}{X_{t-1} \cdot X_{t-2}} \leftarrow \text{ is updated with the next } X_{t}\cdot X_{t-1}$$
+
+**2. Update $\mu$ parameter:**
+
+$$\hat{\mu} = \frac{\sum^n_{t=1}X_{t} \cdot \sum^n_{t=1}{X_{t-1}^2} - \sum^n_{t=1}X_{t-1} \cdot \sum^n_{t=1}X_{t}X_{t-1}}{n \cdot \left(\sum^n_{t=1}X_{t-1}^2 - \sum^n_{t=1}{X_{t}X_{t-1}}\right) - \sum^n_{t=1}X_{t-1}^2+\sum^n_{t=1}X_{t} \cdot \sum^n_{t=1}{X_{t-1}}}$$
+
+**3. Update $\alpha$ parameter:**
+
+$$\hat{\alpha} = \ln{\left(\frac{\sum^n_{t=1}{X_{t-1}^2} - 2\mu \sum^n_{t=1}{X_{t-1}}+n\mu^2}{\sum^n_{t=1}{X_{t}X_{t-1}} - \mu \sum^n_{t=1}{X_{t-1}}-\mu \sum^n_{t=1}{X_{t}}+n\mu^2}\right)}$$
+
+**4. Update $\sigma$ parameter:**
+
+$$\hat{\sigma} = \sum^n_{t=1}{X_t^2} - 2e^{-\hat{\alpha}}\sum^n_{t=1}{X_t \cdot X_{t-1}} + e^{-2\hat{\alpha}} \sum^n_{t=1}{X_{t-1}^2}-2\mu\left(1-e^{-\hat{\alpha}}\right) \left(\sum^n_{t=1}{X_{t}}-e^{-\hat{\alpha}}\sum^n_{t=1}{X_{t-1}}\right)+\left(\mu^2n\left(1-e^{-\hat{\alpha}}\right)\right)$$
+
+Then,
+
+$$\hat{\sigma} = \hat{\sigma} \cdot \frac{1}{n}$$
+
+$$\hat{\sigma} = \hat{\sigma} \cdot \frac{(2e^{-\hat{\alpha}})}{(1 - e^{-2\hat{\alpha}})}$$
+
+**5. Update state:**
+
+$(n-1) \leftarrow n$ and $X_{\text{last}} \leftarrow X_t$
+
+**6. Update stateful object parameters:** $\mu$, $\alpha$, and $\sigma$ are updated in a stateful object based on the new state.
 
 ### Kinetic Components Analysis
 A kalman-filter model adapted to capture the instantaneous first and second derivatives of a stochastic process. It is based on the Kinetic Components Analysis paper by López de Prado (2016) with the ability to produce estimates given a generic stochastic process characterised by a stochastic differential equation.

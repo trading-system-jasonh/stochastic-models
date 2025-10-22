@@ -1,5 +1,5 @@
-#ifndef LINALG_H
-#define LINALG_H
+#ifndef STOCHASTIC_MODELS_NUMERIC_UTILS_LINALG_H
+#define STOCHASTIC_MODELS_NUMERIC_UTILS_LINALG_H
 #include <boost/numeric/ublas/matrix.hpp>
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_matrix.h>
@@ -7,10 +7,11 @@
 /**
  * @brief Class that handles inverting a boost::numeric::ublas matrix using GSL.
  *
- * This logic is unfortunately required due to boost not providing a native
- * matrix inversion method.
+ * Internally the class converts between the project's boost matrix types and
+ * GSL's matrix layout, performs LU-decomposition and inversion using GSL, and
+ * converts the result back to boost types.
  */
-class BoostMartixInverter {
+class BoostMatrixInverter {
 private:
   /**
    * @brief Method to perform LU decomposition on a matrix with GSL.
@@ -68,4 +69,4 @@ public:
   invertMatrix(const boost::numeric::ublas::matrix<double>& boost_matrix) const;
 };
 
-#endif // LINALG_H
+#endif // STOCHASTIC_MODELS_NUMERIC_UTILS_LINALG_H

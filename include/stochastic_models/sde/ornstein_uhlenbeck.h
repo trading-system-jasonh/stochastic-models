@@ -1,5 +1,5 @@
-#ifndef ORNSTEIN_UHLENBECK_H
-#define ORNSTEIN_UHLENBECK_H
+#ifndef STOCHASTIC_MODELS_SDE_ORNSTEIN_UHLENBECK_H
+#define STOCHASTIC_MODELS_SDE_ORNSTEIN_UHLENBECK_H
 #include "stochastic_models/sde/stochastic_model.h"
 
 /**
@@ -31,9 +31,7 @@ public:
   );
   OrnsteinUhlenbeckModel(const OrnsteinUhlenbeckModel& other);
   /**
-   * @brief Construct a new OrnsteinUhlenbeckModel object and return on heap
-   * memory using the class' copy constructor in the caller instance
-   *
+   * @brief Return a heap-allocated copy of the model (virtual constructor).
    * @return const OrnsteinUhlenbeckModel* Pointer to the new instance.
    */
   const OrnsteinUhlenbeckModel* clone() const override;
@@ -76,4 +74,4 @@ public:
 
   ~OrnsteinUhlenbeckModel() override;
 };
-#endif // ORNSTEIN_UHLENBECK_H
+#endif // STOCHASTIC_MODELS_SDE_ORNSTEIN_UHLENBECK_H

@@ -5,6 +5,15 @@
 #include <cmath>
 #include <gtest/gtest.h>
 
+/**
+ * @file
+ * @brief Unit tests for the online General Linear MLE updater.
+ *
+ * These tests exercise single-step updates for `mu` and `sigma` using a
+ * fixed time series and assert values that were computed from a reference
+ * implementation (high precision offline calculation).
+ */
+
 // Test that the GeneralLinearUpdater.updateMu method returns the correct value.
 TEST(GeneralLinearOnlineTest, UpdateMuTest) {
   // Create test data.
@@ -13,25 +22,25 @@ TEST(GeneralLinearOnlineTest, UpdateMuTest) {
                                      1159.6, 1153.6, 1138.3, 1124.6, 1122.6,
                                      1134.,  1132.5, 1139.8, 1133.6, 1124.5};
   const size_t n_obs = test_vec.size();
-  const double sigma = 10.4573;
-  const double mu = -0.00143647;
   const float tolerance = 1e-5;
   const double new_observation = 1125.25;
   const double initial_observation = 1124.5;
 
-  // Initialise the updater with valid values.
+  // Calculate expected value tracking components.
   const GeneralLinearLikelihood likelihood;
-  GeneralLinearUpdater updater(
-      likelihood.calculateLeadLagInnerProduct(test_vec),
-      likelihood.calculateLagSquared(test_vec), std::pow(n_obs * sigma, 2),
-      initial_observation, n_obs
-  );
+  const GeneralLinearLikelihoodComponents components =
+      likelihood.calculateComponents(test_vec);
+  const GeneralLinearParameters params =
+      likelihood.calculateParameters(components);
 
-  // Calculate the new mu value.
-  const double actual = updater.updateMu(new_observation);
+  GeneralLinearUpdater updater{components, params};
 
-  const double expected = -0.00139819;
-  EXPECT_LE(abs(roundToDecimals(actual, 8) - expected), tolerance)
+  // Calculate the new parameters.
+  const GeneralLinearParameters actual =
+      updater.updateState(new_observation, initial_observation);
+
+  const double expected = -0.00133194;
+  EXPECT_LE(abs(roundToDecimals(actual.mu, 8) - expected), tolerance)
       << "GeneralLinearUpdater updateMu method returning invalid value.";
 }
 
@@ -44,22 +53,24 @@ TEST(GeneralLinearOnlineTest, UpdateSigmaTest) {
                                      1159.6, 1153.6, 1138.3, 1124.6, 1122.6,
                                      1134.,  1132.5, 1139.8, 1133.6, 1124.5};
   const size_t n_obs = test_vec.size();
-  const double sigma = 10.4573;
-  const double mu = -0.00143647;
   const float tolerance = 1e-5;
   const double new_observation = 1125.25;
   const double initial_observation = 1124.5;
 
-  // Initialise the updater with valid values.
-  GeneralLinearUpdater updater(
-      0.0, 0.0, std::pow(n_obs * sigma, 2), initial_observation, n_obs
-  );
+  // Calculate expected value tracking components.
+  const GeneralLinearLikelihood likelihood;
+  const GeneralLinearLikelihoodComponents components =
+      likelihood.calculateComponents(test_vec);
+  const GeneralLinearParameters params =
+      likelihood.calculateParameters(components);
 
-  // Calculate the new sigma value.
-  const double actual =
-      updater.updateSigma(new_observation, std::exp(mu) * new_observation);
+  GeneralLinearUpdater updater{components, params};
 
-  const double expected = 45.6407;
-  EXPECT_LE(abs(roundToDecimals(actual, 8) - expected), tolerance)
+  // Calculate the new parameters.
+  const GeneralLinearParameters actual =
+      updater.updateState(new_observation, initial_observation);
+
+  const double expected = 10.2165;
+  EXPECT_LE(abs(roundToDecimals(actual.sigma, 4) - expected), tolerance)
       << "GeneralLinearUpdater updateSigma method returning invalid value.";
 }

@@ -164,14 +164,13 @@ FilterGeneralSde::FilterGeneralSde(
     const double& conditional_variance,
     const double& mu_numerator,
     const double& mu_denominator,
-    const double& sigma_kernel_value,
     const u_int32_t& n_observations
 )
     : mu(mu), sigma(sigma), conditional_variance(conditional_variance),
       mu_numerator(mu_numerator), mu_denominator(mu_denominator),
-      sigma_kernel_value(sigma_kernel_value), n_observations(n_observations) {}
+      n_observations(n_observations) {}
 FilterGeneralSde::FilterGeneralSde()
-    : FilterGeneralSde(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0) {}
+    : FilterGeneralSde(0.0, 0.0, 0.0, 0.0, 0.0, 0) {}
 const double& FilterGeneralSde::getMu() const {
   return mu;
 }
@@ -184,18 +183,18 @@ const double& FilterGeneralSde::getConditionalVariance() const {
 void FilterGeneralSde::initializeLikelihoodState(
     const std::vector<double>& data_series
 ) {
-  const std::unordered_map<std::string, const double> likelihood_values =
-      likelihood.calculate(data_series);
-  mu = likelihood_values.at("mu");
-  sigma = likelihood_values.at("sigma");
-  conditional_variance = likelihood.calculateConditionalVariance(sigma, mu);
+  const GeneralLinearLikelihoodComponents components =
+      likelihood.calculateComponents(data_series);
+  const GeneralLinearParameters likelihood_values =
+      likelihood.calculateParameters(components);
 
-  u_int32_t n_obs = static_cast<u_int32_t>(data_series.size());
-
-  n_observations = n_obs;
-  mu_numerator = likelihood.calculateLeadLagInnerProduct(data_series);
-  mu_denominator = likelihood.calculateLagSquared(data_series);
-  sigma_kernel_value = likelihood.calculateSigmaKernel(n_obs, sigma);
+  mu = likelihood_values.mu;
+  sigma = likelihood_values.sigma;
+  conditional_variance =
+      likelihood.calculateConditionalVariance(likelihood_values);
+  mu_numerator = components.lead_lag_inner_product;
+  mu_denominator = components.lag_squared;
+  n_observations = components.n_obs;
 }
 
 // Type that contains internal dimensions of a Kalman Filter system.
@@ -360,7 +359,7 @@ void KcaStates::updateCurrentState(
           getPredictedStateCovariance(), innovation_sigma
       );
 
-  const BoostMartixInverter matrix_inverter;
+  const BoostMatrixInverter matrix_inverter;
   const matrix<double> kalman_gain = predicted_observation.calculateKalmanGain(
       getPredictedStateCovariance(), predicted_observation_covariance,
       matrix_inverter
